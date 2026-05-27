@@ -361,6 +361,12 @@ function buildOverviewLineItems(){
   const cm2Hist25 = cm1Hist25.map((v,i)=>v - (HIST.fy25.perf_mkt[i]||0));
   const cm2Hist26 = cm1Hist26.map((v,i)=>v - (HIST.fy26.perf_mkt[i]||0));
 
+  // EBITDA monthly = CM2 (variable, tracks revenue) minus fixed costs net of other income
+  const bFixedMonthly = (INV.Base.branding_cr + INV.Base.salary_cr + INV.Base.overheads_cr - INV.Base.income_cr) / 12;
+  const oFixedMonthly = (INV.Optimistic.branding_cr + INV.Optimistic.salary_cr + INV.Optimistic.overheads_cr - INV.Optimistic.income_cr) / 12;
+  const bM_ebitda = baseM.map(v => v * INV.Base.cm2_pct - bFixedMonthly);
+  const oM_ebitda = optM.map(v => v * INV.Optimistic.cm2_pct - oFixedMonthly);
+
   const items = [
     {key:'rev', label:'Net Secondary Revenue', type:'cr', cls:'hl-rev',
       fy25M:HIST.fy25.net_revenue, fy26M:HIST.fy26.net_revenue, bM:baseM, oM:optM},
@@ -428,11 +434,12 @@ function buildOverviewLineItems(){
 
     {key:'ebitda_cr', label:'EBITDA (₹ Cr)', type:'cr', cls:'hl-eb',
       fy25M:HIST.fy25.ebitda, fy26M:HIST.fy26.ebitda,
-      bM:flat(INV.Base.ebitda_cr), oM:flat(INV.Optimistic.ebitda_cr)},
+      bM:bM_ebitda, oM:oM_ebitda},
     {key:'ebitda_pct', label:'EBITDA %', type:'pct', cls:'hl-cm2',
       fy25NumM:HIST.fy25.ebitda, fy25DenM:HIST.fy25.net_revenue,
       fy26NumM:HIST.fy26.ebitda, fy26DenM:HIST.fy26.net_revenue,
-      bM:new Array(12).fill(INV.Base.ebitda_pct), oM:new Array(12).fill(INV.Optimistic.ebitda_pct), fy27ConstPct:true},
+      fy27NumM_b:bM_ebitda, fy27DenM_b:baseM,
+      fy27NumM_o:oM_ebitda, fy27DenM_o:optM},
 
   ];
   return items;
@@ -544,8 +551,10 @@ function rowCells(it, periods, colKeys, view){
   if (it.type==='pct'){
     fy25Vals = it.fy25NumM ? bucketPctFromAbs(it.fy25NumM, it.fy25DenM, view) : null;
     fy26Vals = it.fy26NumM ? bucketPctFromAbs(it.fy26NumM, it.fy26DenM, view) : null;
-    bVals = it.fy27ConstPct ? bucketConstPct(it.bM[0], view) : bucketArr(it.bM, view);
-    oVals = it.fy27ConstPct ? bucketConstPct(it.oM[0], view) : bucketArr(it.oM, view);
+    bVals = it.fy27NumM_b ? bucketPctFromAbs(it.fy27NumM_b, it.fy27DenM_b, view)
+            : it.fy27ConstPct ? bucketConstPct(it.bM[0], view) : bucketArr(it.bM, view);
+    oVals = it.fy27NumM_o ? bucketPctFromAbs(it.fy27NumM_o, it.fy27DenM_o, view)
+            : it.fy27ConstPct ? bucketConstPct(it.oM[0], view) : bucketArr(it.oM, view);
   } else {
     fy25Vals = bucketArr(it.fy25M, view);
     fy26Vals = bucketArr(it.fy26M, view);
