@@ -361,11 +361,12 @@ function buildOverviewLineItems(){
   const cm2Hist25 = cm1Hist25.map((v,i)=>v - (HIST.fy25.perf_mkt[i]||0));
   const cm2Hist26 = cm1Hist26.map((v,i)=>v - (HIST.fy26.perf_mkt[i]||0));
 
-  // EBITDA monthly = CM2 (variable, tracks revenue) minus fixed costs net of other income
-  const bFixedMonthly = (INV.Base.branding_cr + INV.Base.salary_cr + INV.Base.overheads_cr - INV.Base.income_cr) / 12;
-  const oFixedMonthly = (INV.Optimistic.branding_cr + INV.Optimistic.salary_cr + INV.Optimistic.overheads_cr - INV.Optimistic.income_cr) / 12;
-  const bM_ebitda = baseM.map(v => v * INV.Base.cm2_pct - bFixedMonthly);
-  const oM_ebitda = optM.map(v => v * INV.Optimistic.cm2_pct - oFixedMonthly);
+  // Proportional helpers: spread any annual amount across months in proportion to revenue
+  const propB = (annual) => baseM.map(v => v * annual / INV.Base.net_rev);
+  const propO = (annual) => optM.map(v => v * annual / INV.Optimistic.net_rev);
+  // EBITDA Cr: proportional to revenue so annual total = ebitda_cr exactly; % is constant
+  const bM_ebitda = propB(INV.Base.ebitda_cr);
+  const oM_ebitda = propO(INV.Optimistic.ebitda_cr);
 
   const items = [
     {key:'rev', label:'Net Secondary Revenue', type:'cr', cls:'hl-rev',
@@ -410,27 +411,27 @@ function buildOverviewLineItems(){
     {key:'_h_fixed', label:'Fixed Cost', type:'header', pcts:{b:(INV.Base.branding_cr+INV.Base.salary_cr+INV.Base.overheads_cr)/INV.Base.net_rev, o:(INV.Optimistic.branding_cr+INV.Optimistic.salary_cr+INV.Optimistic.overheads_cr)/INV.Optimistic.net_rev, fy25Num:HIST.fy25.branding.map((v,i)=>v+(HIST.fy25.salary[i]||0)+(HIST.fy25.overheads[i]||0)), fy25Den:HIST.fy25.net_revenue, fy26Num:HIST.fy26.branding.map((v,i)=>v+(HIST.fy26.salary[i]||0)+(HIST.fy26.overheads[i]||0)), fy26Den:HIST.fy26.net_revenue}},
     {key:'brand_cr', label:'(−) Branding', type:'cr',
       fy25M:HIST.fy25.branding, fy26M:HIST.fy26.branding,
-      bM:flat(INV.Base.branding_cr), oM:flat(INV.Optimistic.branding_cr)},
+      bM:propB(INV.Base.branding_cr), oM:propO(INV.Optimistic.branding_cr)},
     {key:'salary_cr', label:'(−) Corporate Salaries', type:'cr',
       fy25M:HIST.fy25.salary, fy26M:HIST.fy26.salary,
-      bM:flat(INV.Base.salary_cr), oM:flat(INV.Optimistic.salary_cr)},
+      bM:propB(INV.Base.salary_cr), oM:propO(INV.Optimistic.salary_cr)},
     {key:'overheads_cr', label:'(−) Overheads (total)', type:'cr', collapsible:'overheads',
       fy25M:HIST.fy25.overheads, fy26M:HIST.fy26.overheads,
-      bM:flat(INV.Base.overheads_cr), oM:flat(INV.Optimistic.overheads_cr)},
+      bM:propB(INV.Base.overheads_cr), oM:propO(INV.Optimistic.overheads_cr)},
 
     {key:'oh_prof', label:'Professional expenses', type:'cr', sub:'overheads',
       fy25M:HIST.fy25.oh_prof, fy26M:HIST.fy26.oh_prof,
-      bM:flat(INV.Base.professional), oM:flat(INV.Optimistic.professional)},
+      bM:propB(INV.Base.professional), oM:propO(INV.Optimistic.professional)},
     {key:'oh_rent', label:'Rentals', type:'cr', sub:'overheads',
       fy25M:HIST.fy25.oh_rent, fy26M:HIST.fy26.oh_rent,
-      bM:flat(INV.Base.rental), oM:flat(INV.Optimistic.rental)},
+      bM:propB(INV.Base.rental), oM:propO(INV.Optimistic.rental)},
     {key:'oh_oth', label:'Other expenses (R&D + Mktg + Others)', type:'cr', sub:'overheads',
       fy25M:HIST.fy25.oh_other, fy26M:HIST.fy26.oh_other,
-      bM:flat(INV.Base.other_exp), oM:flat(INV.Optimistic.other_exp)},
+      bM:propB(INV.Base.other_exp), oM:propO(INV.Optimistic.other_exp)},
 
     {key:'income_cr', label:'(+) Income from other investments', type:'cr',
       fy25M:HIST.fy25.other_income, fy26M:HIST.fy26.other_income,
-      bM:flat(INV.Base.income_cr), oM:flat(INV.Optimistic.income_cr)},
+      bM:propB(INV.Base.income_cr), oM:propO(INV.Optimistic.income_cr)},
 
     {key:'ebitda_cr', label:'EBITDA (₹ Cr)', type:'cr', cls:'hl-eb',
       fy25M:HIST.fy25.ebitda, fy26M:HIST.fy26.ebitda,
@@ -438,8 +439,7 @@ function buildOverviewLineItems(){
     {key:'ebitda_pct', label:'EBITDA %', type:'pct', cls:'hl-cm2',
       fy25NumM:HIST.fy25.ebitda, fy25DenM:HIST.fy25.net_revenue,
       fy26NumM:HIST.fy26.ebitda, fy26DenM:HIST.fy26.net_revenue,
-      fy27NumM_b:bM_ebitda, fy27DenM_b:baseM,
-      fy27NumM_o:oM_ebitda, fy27DenM_o:optM},
+      bM:new Array(12).fill(INV.Base.ebitda_pct), oM:new Array(12).fill(INV.Optimistic.ebitda_pct), fy27ConstPct:true},
 
   ];
   return items;
